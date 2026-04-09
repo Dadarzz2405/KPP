@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Welcome Kiosk</title>
+
+  <!-- MediaPipe Face Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+  <!-- Google Fonts: Orbitron (display) + Exo 2 (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── CSS Reset & Variables ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:    #030712;
+      --bg-mid:     #0d1117;
+      --accent:     #00d4ff;
+      --accent2:    #7c3aed;
+      --accent3:    #10b981;
+      --text-main:  #e2e8f0;
+      --text-dim:   #64748b;
+      --glass-bg:   rgba(255,255,255,0.05);
+      --glass-border: rgba(0,212,255,0.2);
+      --glass-blur: blur(16px);
+
+      /* Category colours */
+      --cat-health:  #ef4444;
+      --cat-games:   #f59e0b;
+      --cat-science: #10b981;
+      --cat-social:  #8b5cf6;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg-deep);
+      font-family: 'Exo 2', sans-serif;
+      color: var(--text-main);
+      user-select: none;
+    }
+
+    /* ─── Hidden video for MediaPipe ─── */
+    #input-video {
+      position: absolute;
+      width: 1px; height: 1px;
+      opacity: 0; pointer-events: none;
+    }
+
+    /* ════════════════════════════════════
+       LAYER 0 – Animated Background Canvas
+       ════════════════════════════════════ */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* ════════════════════════════════════
+       LAYER 1 – UNLOCK OVERLAY
+       ════════════════════════════════════ */
+    #unlock-overlay {
+      position: fixed; inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at center, #0d1b2a 0%, #030712 70%);
+      transition: opacity 0.8s ease;
+    }
+    #unlock-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .unlock-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 900;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      text-shadow: 0 0 40px rgba(0,212,255,0.6);
+      margin-bottom: 1vw;
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+    .unlock-sub {
+      font-size: clamp(0.8rem, 1.5vw, 1.2rem);
+      color: var(--text-dim);
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      margin-bottom: 6vw;
+    }
+    #start-btn {
+      position: relative;
+      padding: 1.4vw 4vw;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.9rem, 1.8vw, 1.4rem);
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      color: var(--bg-deep);
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      clip-path: polygon(1.5em 0%, 100% 0%, calc(100% - 1.5em) 100%, 0% 100%);
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 30px rgba(0,212,255,0.5);
+    }
+    #start-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 55px rgba(0,212,255,0.9);
+    }
+    #start-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%);
+      animation: shimmer 2.5s infinite;
+    }
+
+    /* ════════════════════════════════════
+       LAYER 2 – IDLE STATE
+       ════════════════════════════════════ */
+    #idle-screen {
+      position: fixed; inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    #idle-screen.hidden {
+      opacity: 0;
+      transform: scale(1.05);
+      pointer-events: none;
+    }
+
+    .idle-eyebrow {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.6rem, 1.2vw, 1rem);
+      letter-spacing: 0.6em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 2vw;
+      animation: fade-blink 2s ease-in-out infinite;
+    }
+    .idle-main-text {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 5.5vw, 5.5rem);
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 80vw;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--accent) 50%, #e2e8f0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 25px rgba(0,212,255,0.4));
+      animation: text-shimmer 4s ease infinite;
+      background-size: 200% 200%;
+    }
+    .idle-cta {
+      margin-top: 4vw;
+      font-size: clamp(0.8rem, 1.8vw, 1.5rem);
+      color: var(--text-dim);
+      letter-spacing: 0.2em;
+      display: flex;
+      align-items: center;
+      gap: 1em;
+    }
+    .idle-cta::before, .idle-cta::after {
+      content: '';
+      width: 4vw;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent));
+    }
+    .idle-cta::after { background: linear-gradient(90deg, var(--accent), transparent); }
+
+    /* Scanning line */
+    .scan-ring {
+      position: absolute;
+      width: 22vw;
+      height: 22vw;
+      border-radius: 50%;
+      border: 1px solid rgba(0,212,255,0.15);
+      animation: ring-pulse 3s ease-out infinite;
+    }
+    .scan-ring:nth-child(2) { animation-delay: 1s; }
+    .scan-ring:nth-child(3) { animation-delay: 2s; }
+
+    .scan-rings-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    /* Corner brackets */
+    .corners {
+      position: fixed;
+      inset: 3vw;
+      pointer-events: none;
+      z-index: 9;
+    }
+    .corner {
+      position: absolute;
+      width: 4vw;
+      height: 4vw;
+      border-color: rgba(0,212,255,0.4);
+      border-style: solid;
+    }
+    .corner.tl { top:0; left:0;  border-width: 2px 0 0 2px; }
+    .corner.tr { top:0; right:0; border-width: 2px 2px 0 0; }
+    .corner.bl { bottom:0; left:0;  border-width: 0 0 2px 2px; }
+    .corner.br { bottom:0; right:0; border-width: 0 2px 2px 0; }
+
+    /* Status bar */
+    .status-bar {
+      position: fixed;
+      bottom: 3vw;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 1vw;
+      font-size: clamp(0.5rem, 1vw, 0.85rem);
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+    }
+    .status-dot {
+      width: 0.6vw;
+      height: 0.6vw;
+      min-width: 6px;
+      min-height: 6px;
+      border-radius: 50%;
+      background: var(--accent3);
+      box-shadow: 0 0 8px var(--accent3);
+      animation: dot-blink 1.5s ease-in-out infinite;
+    }
+    .status-dot.red { background:#ef4444; box-shadow:0 0 8px #ef4444; }
+
+    /* ════════════════════════════════════
+       LAYER 3 – WELCOME / PROJECT MENU
+       ════════════════════════════════════ */
+    #welcome-screen {
+      position: fixed; inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 3vw 4vw;
+      opacity: 0;
+      transform: translateY(3%);
+      pointer-events: none;
+      transition: opacity 0.7s ease, transform 0.7s ease;
+      overflow-y: auto;
+    }
+    #welcome-screen.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Countdown ring */
+    .countdown-ring {
+      position: fixed;
+      top: 2.5vw;
+      right: 3.5vw;
+      z-index: 30;
+    }
+    .countdown-ring svg { transform: rotate(-90deg); }
+    .countdown-ring circle.track { fill: none; stroke: rgba(255,255,255,0.08); }
+    .countdown-ring circle.fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear;
+    }
+    .countdown-number {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.7rem, 1.5vw, 1.2rem);
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .welcome-header {
+      text-align: center;
+      margin-bottom: 2.5vw;
+    }
+    .welcome-header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.8rem, 4.5vw, 4.5rem);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      background: linear-gradient(90deg, var(--accent), #fff, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 20px rgba(0,212,255,0.3));
+    }
+    .welcome-header p {
+      font-size: clamp(0.7rem, 1.4vw, 1.1rem);
+      color: var(--text-dim);
+      letter-spacing: 0.3em;
+      margin-top: 0.5vw;
+    }
+
+    /* ── 4-column grid ── */
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2vw;
+      width: 100%;
+      max-width: 1800px;
+    }
+
+    .category-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-radius: 1.2vw;
+      padding: 2vw 1.8vw;
+      position: relative;
+      overflow: hidden;
+      animation: card-in 0.6s ease both;
+    }
+    .category-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, var(--cat-color,var(--accent)) 0%, transparent 60%);
+      opacity: 0.06;
+      pointer-events: none;
+    }
+    .category-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--cat-color,var(--accent)), transparent);
+      border-radius: 1.2vw 1.2vw 0 0;
+    }
+
+    /* stagger */
+    .category-card:nth-child(1) { animation-delay: 0.1s; }
+    .category-card:nth-child(2) { animation-delay: 0.2s; }
+    .category-card:nth-child(3) { animation-delay: 0.3s; }
+    .category-card:nth-child(4) { animation-delay: 0.4s; }
+
+    .cat-icon {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      margin-bottom: 0.8vw;
+    }
+    .cat-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.8rem, 1.4vw, 1.2rem);
+      font-weight: 700;
+      color: var(--cat-color, var(--accent));
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.4vw;
+    }
+    .cat-divider {
+      height: 1px;
+      background: linear-gradient(90deg, var(--cat-color, var(--accent)), transparent);
+      margin-bottom: 1.2vw;
+      opacity: 0.4;
+    }
+
+    .project-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1vw;
+      padding-bottom: 1vw;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .project-item:last-child { margin-bottom: 0; padding-bottom: 0; border: none; }
+
+    .project-name {
+      font-size: clamp(0.75rem, 1.3vw, 1.1rem);
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+    .project-sub {
+      font-size: clamp(0.6rem, 1vw, 0.85rem);
+      color: var(--cat-color, var(--accent));
+      opacity: 0.8;
+      margin-top: 0.2vw;
+      font-style: italic;
+    }
+
+    /* ════════════════════════════════════
+       KEYFRAMES
+       ════════════════════════════════════ */
+    @keyframes glow-pulse {
+      0%,100% { text-shadow: 0 0 40px rgba(0,212,255,0.6); }
+      50%      { text-shadow: 0 0 80px rgba(0,212,255,1), 0 0 120px rgba(0,212,255,0.4); }
+    }
+    @keyframes shimmer {
+      0%   { transform: translateX(-100%) skewX(-15deg); }
+      100% { transform: translateX(200%) skewX(-15deg); }
+    }
+    @keyframes text-shimmer {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes fade-blink {
+      0%,100% { opacity:1; } 50% { opacity:0.3; }
+    }
+    @keyframes ring-pulse {
+      0%   { transform: scale(0.6); opacity:0.8; }
+      100% { transform: scale(2.2); opacity:0; }
+    }
+    @keyframes dot-blink {
+      0%,100% { opacity:1; } 50% { opacity:0.2; }
+    }
+    @keyframes card-in {
+      from { opacity:0; transform: translateY(20px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    /* ─── Wipe transition overlay ─── */
+    #wipe {
+      position: fixed; inset: 0;
+      z-index: 50;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+    #wipe.active {
+      animation: wipe-through 0.9s cubic-bezier(0.77,0,0.18,1) forwards;
+    }
+    @keyframes wipe-through {
+      0%   { transform: translateX(-100%); }
+      45%  { transform: translateX(0%); }
+      55%  { transform: translateX(0%); }
+      100% { transform: translateX(105%); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Hidden video feed -->
+  <video id="input-video" autoplay muted playsinline></video>
+
+  <!-- Animated background canvas -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Wipe overlay -->
+  <div id="wipe"></div>
+
+  <!-- Corner brackets (always visible after unlock) -->
+  <div class="corners" id="corners" style="display:none">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="status-bar" style="display:none">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">SCANNING FOR VISITORS</span>
+  </div>
+
+  <!-- Countdown ring -->
+  <div class="countdown-ring" id="countdown-ring" style="display:none">
+    <svg width="64" height="64" viewBox="0 0 64 64">
+      <circle class="track" cx="32" cy="32" r="28" stroke-width="4"/>
+      <circle class="fill" id="countdown-circle" cx="32" cy="32" r="28" stroke-width="4"
+        stroke-dasharray="175.93" stroke-dashoffset="0"/>
+    </svg>
+    <div class="countdown-number" id="countdown-num">10</div>
+  </div>
+
+  <!-- ── UNLOCK OVERLAY ── -->
+  <div id="unlock-overlay">
+    <div class="unlock-logo">EXHIBITION 2025</div>
+    <div class="unlock-sub">AI Smart Welcome Kiosk</div>
+    <button id="start-btn">▶ &nbsp; START EXPERIENCE</button>
+  </div>
+
+  <!-- ── IDLE SCREEN ── -->
+  <div id="idle-screen" style="display:none">
+    <div class="scan-rings-wrapper">
+      <div class="scan-ring"></div>
+      <div class="scan-ring"></div>
+      <div class="scan-ring"></div>
+    </div>
+    <div class="idle-eyebrow">AI Detection Active</div>
+    <div class="idle-main-text">Step Forward<br>to Explore Our<br>Projects</div>
+    <div class="idle-cta">Approach the screen</div>
+  </div>
+
+  <!-- ── WELCOME SCREEN ── -->
+  <div id="welcome-screen">
+    <div class="welcome-header">
+      <h1>Welcome, Explorer!</h1>
+      <p>DISCOVER STUDENT INNOVATIONS ACROSS FOUR DISCIPLINES</p>
+    </div>
+
+    <div class="project-grid">
+
+      <!-- HEALTH -->
+      <div class="category-card" style="--cat-color: var(--cat-health)">
+        <div class="cat-icon">🩺</div>
+        <div class="cat-title">Health &amp; Well-Being</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Jonathan</span>
+          <span class="project-sub">Fittin</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Kamila</span>
+          <span class="project-sub">Mindful Moments</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Azka</span>
+          <span class="project-sub">A Space to Breathe</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Athar</span>
+          <span class="project-sub">Patho-Predict</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Gavin</span>
+          <span class="project-sub">Plates of Inequality</span>
+        </div>
+      </div>
+
+      <!-- GAMES -->
+      <div class="category-card" style="--cat-color: var(--cat-games)">
+        <div class="cat-icon">🎮</div>
+        <div class="cat-title">Educational Games</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Doni</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Syamil</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Gentle</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Parnel</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Kemas</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+      </div>
+
+      <!-- SCIENCE -->
+      <div class="category-card" style="--cat-color: var(--cat-science)">
+        <div class="cat-icon">🔬</div>
+        <div class="cat-title">Science &amp; Environment</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Hadziq Ula</span>
+          <span class="project-sub">TerraSense</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Salsa</span>
+          <span class="project-sub">BirdDex!</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Naura</span>
+          <span class="project-sub">Nuclear Reactor Simulator</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Faiq</span>
+          <span class="project-sub">LearningwithIB</span>
+        </div>
+      </div>
+
+      <!-- SOCIAL -->
+      <div class="category-card" style="--cat-color: var(--cat-social)">
+        <div class="cat-icon">🌐</div>
+        <div class="cat-title">Social &amp; Self-Management</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Rifqy</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Raisya</span>
+          <span class="project-sub">Nexus</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Dhavi</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Descan</span>
+          <span class="project-sub">Innovation Project</span>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Haidar</span>
+          <span class="project-sub">Dadarzz Agent &amp; ManageSpace</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       JAVASCRIPT
+       ════════════════════════════════════════ -->
+  <script>
+  (() => {
+
+    /* ─── Elements ─── */
+    const unlockOverlay   = document.getElementById('unlock-overlay');
+    const startBtn        = document.getElementById('start-btn');
+    const idleScreen      = document.getElementById('idle-screen');
+    const welcomeScreen   = document.getElementById('welcome-screen');
+    const wipe            = document.getElementById('wipe');
+    const corners         = document.getElementById('corners');
+    const statusBar       = document.getElementById('status-bar');
+    const statusDot       = document.getElementById('status-dot');
+    const statusText      = document.getElementById('status-text');
+    const countdownRing   = document.getElementById('countdown-ring');
+    const countdownCircle = document.getElementById('countdown-circle');
+    const countdownNum    = document.getElementById('countdown-num');
+    const video           = document.getElementById('input-video');
+
+    /* ─── Background canvas: Particle grid ─── */
+    const canvas = document.getElementById('bg-canvas');
+    const ctx    = canvas.getContext('2d');
+    let particles = [];
+
+    function initCanvas() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      particles = Array.from({ length: 80 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 1.5 + 0.5,
+        a: Math.random()
+      }));
+    }
+
+    function drawBg() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Deep gradient
+      const grad = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, canvas.width * 0.75
+      );
+      grad.addColorStop(0, '#0d1b2a');
+      grad.addColorStop(1, '#030712');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(0,212,255,0.04)';
+      ctx.lineWidth = 1;
+      const step = 80;
+      for (let x = 0; x < canvas.width; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // Particles
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,212,255,${p.a * 0.5})`;
+        ctx.fill();
+      });
+
+      // Connect nearby particles
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(0,212,255,${0.12 * (1 - dist/120)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      requestAnimationFrame(drawBg);
+    }
+
+    window.addEventListener('resize', initCanvas);
+    initCanvas();
+    drawBg();
+
+    /* ─── State ─── */
+    let appState       = 'unlock'; // unlock | idle | welcome
+    let hasGreeted     = false;
+    let resetTimer     = null;
+    let countdownSec   = 10;
+    let countdownIntvl = null;
+    const CIRCUMFERENCE = 175.93;
+
+    /* ─── TTS Helper ─── */
+    function speak(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang  = 'en-US';
+      utt.rate  = 0.95;
+      utt.pitch = 1.1;
+      utt.volume = 1;
+
+      // Pick a natural voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v =>
+        v.name.toLowerCase().includes('google') ||
+        v.name.toLowerCase().includes('natural') ||
+        v.lang === 'en-US'
+      );
+      if (preferred) utt.voice = preferred;
+      window.speechSynthesis.speak(utt);
+    }
+
+    /* ─── Beep chime via Web Audio ─── */
+    function playChime() {
+      try {
+        const ac  = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+          const osc  = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.connect(gain); gain.connect(ac.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ac.currentTime + i * 0.12;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(0.25, t + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          osc.start(t); osc.stop(t + 0.5);
+        });
+      } catch(e) { /* silent fail */ }
+    }
+
+    /* ─── Countdown ring ─── */
+    function startCountdown() {
+      countdownSec = 10;
+      countdownRing.style.display = 'block';
+      countdownNum.textContent = countdownSec;
+      countdownCircle.style.strokeDashoffset = 0;
+      clearInterval(countdownIntvl);
+      countdownIntvl = setInterval(() => {
+        countdownSec--;
+        countdownNum.textContent = countdownSec;
+        const offset = CIRCUMFERENCE * (1 - countdownSec / 10);
+        countdownCircle.style.strokeDashoffset = offset;
+        if (countdownSec <= 0) { clearInterval(countdownIntvl); }
+      }, 1000);
+    }
+
+    function stopCountdown() {
+      clearInterval(countdownIntvl);
+      countdownRing.style.display = 'none';
+    }
+
+    /* ─── State machine ─── */
+    function goIdle() {
+      appState    = 'idle';
+      hasGreeted  = false;
+      stopCountdown();
+      clearTimeout(resetTimer);
+      window.speechSynthesis && window.speechSynthesis.cancel();
+
+      welcomeScreen.classList.remove('visible');
+      idleScreen.style.display = 'flex';
+      setTimeout(() => idleScreen.classList.remove('hidden'), 20);
+
+      statusDot.className  = 'status-dot';
+      statusText.textContent = 'SCANNING FOR VISITORS';
+    }
+
+    function triggerWelcome() {
+      if (appState === 'welcome') return;
+      appState = 'welcome';
+
+      // Wipe transition
+      wipe.classList.add('active');
+      setTimeout(() => wipe.classList.remove('active'), 950);
+
+      // Hide idle
+      idleScreen.classList.add('hidden');
+      setTimeout(() => { idleScreen.style.display = 'none'; }, 400);
+
+      // Show welcome
+      setTimeout(() => {
+        welcomeScreen.classList.add('visible');
+      }, 450);
+
+      // Audio
+      if (!hasGreeted) {
+        hasGreeted = true;
+        setTimeout(() => {
+          playChime();
+          setTimeout(() => {
+            speak("Welcome! Explore our student projects in Health and Well-Being, Educational Games, Science and Environment, and Social and Self-Management.");
+          }, 600);
+        }, 500);
+      }
+
+      // Status
+      statusDot.className  = 'status-dot';
+      statusText.textContent = 'VISITOR DETECTED — DISPLAYING PROJECTS';
+
+      scheduleReset();
+    }
+
+    function scheduleReset() {
+      clearTimeout(resetTimer);
+      startCountdown();
+      resetTimer = setTimeout(goIdle, 10000);
+    }
+
+    /* ─── MediaPipe Face Detection ─── */
+    let lastDetectTime = 0;
+    const DETECT_INTERVAL = 100; // ~10 FPS throttle
+
+    function onResults(results) {
+      const now = performance.now();
+      if (now - lastDetectTime < DETECT_INTERVAL) return;
+      lastDetectTime = now;
+
+      const faceFound = results.detections && results.detections.length > 0;
+
+      if (faceFound) {
+        if (appState === 'idle') {
+          triggerWelcome();
+        } else if (appState === 'welcome') {
+          // Refresh the reset timer on continued detection
+          clearTimeout(resetTimer);
+          scheduleReset();
+        }
+      }
+    }
+
+    function initFaceDetection() {
+      const faceDetection = new FaceDetection({
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+      });
+      faceDetection.setOptions({
+        model: 'short',          // lighter / faster for low-end hardware
+        minDetectionConfidence: 0.7
+      });
+      faceDetection.onResults(onResults);
+
+      const camera = new Camera(video, {
+        onFrame: async () => {
+          await faceDetection.send({ image: video });
+        },
+        width: 320,   // intentionally low-res to save CPU
+        height: 240
+      });
+      camera.start()
+        .then(() => {
+          statusDot.className   = 'status-dot';
+          statusText.textContent = 'SCANNING FOR VISITORS';
+        })
+        .catch(() => {
+          statusDot.className   = 'status-dot red';
+          statusText.textContent = 'CAMERA UNAVAILABLE — CHECK PERMISSIONS';
+        });
+    }
+
+    /* ─── Unlock button ─── */
+    startBtn.addEventListener('click', () => {
+      // Trigger audio context on user gesture (required by browsers)
+      try { new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+      // Preload voices
+      if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
+      unlockOverlay.classList.add('hidden');
+      setTimeout(() => {
+        unlockOverlay.style.display = 'none';
+        corners.style.display = 'block';
+        statusBar.style.display = 'flex';
+        idleScreen.style.display = 'flex';
+        setTimeout(() => idleScreen.classList.remove('hidden'), 20);
+        appState = 'idle';
+        initFaceDetection();
+      }, 850);
+    });
+
+    // Voices sometimes load async
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+
+  })();
+  </script>
+</body>
+</html>
