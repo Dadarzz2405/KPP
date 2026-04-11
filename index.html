@@ -28,26 +28,30 @@
     }
 
     :root {
-      --bg-deep: #020b1f;
-      /* Navy */
-      --bg-mid: #0e224e;
-      --accent: #edc531;
-      /* Gold */
-      --accent2: #e30a1c;
-      /* Red */
-      --accent3: #3b82f6;
-      /* Blue */
-      --text-main: #ffffff;
-      --text-dim: #9ab3d5;
-      --glass-bg: rgba(255, 255, 255, 0.05);
-      --glass-border: rgba(237, 197, 49, 0.2);
-      --glass-blur: blur(16px);
+      --bg-deep: #050a14;
+      /* Deep Midnight */
+      --bg-mid: #0a1428;
+      --accent: #d4af37;
+      /* Refined Gold */
+      --accent2: #a32626;
+      /* Muted Maroon */
+      --accent3: #4a69bd;
+      /* Slate Blue */
+      --text-main: #f8f9fa;
+      --text-dim: #8e9aaf;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(212, 175, 55, 0.15);
+      --glass-blur: blur(20px);
 
-      /* Category colours */
-      --cat-health: #ef4444;
-      --cat-games: #f59e0b;
-      --cat-science: #10b981;
-      --cat-social: #8b5cf6;
+      /* Category colours - derived from branding */
+      --cat-health: #a32626;
+      /* Maroon */
+      --cat-games: #d4af37;
+      /* Gold */
+      --cat-science: #4a69bd;
+      /* Blue */
+      --cat-social: #6c757d;
+      /* Grey/Slate */
     }
 
     html,
@@ -105,7 +109,7 @@
       font-weight: 900;
       letter-spacing: 0.3em;
       color: var(--accent);
-      text-shadow: 0 0 40px rgba(237, 197, 49, 0.6);
+      text-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
       margin-bottom: 1vw;
       animation: glow-pulse 3s ease-in-out infinite;
     }
@@ -136,7 +140,7 @@
 
     #start-btn:hover {
       transform: scale(1.06);
-      box-shadow: 0 0 55px rgba(237, 197, 49, 0.9);
+      box-shadow: 0 0 55px rgba(212, 175, 55, 0.4);
     }
 
     #start-btn::after {
@@ -640,7 +644,7 @@
       position: fixed;
       inset: 0;
       z-index: 50;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      background: linear-gradient(135deg, var(--bg-deep) 0%, var(--accent2) 100%);
       transform: translateX(-100%);
       pointer-events: none;
     }
@@ -694,21 +698,15 @@
     <span id="status-text">SCANNING FOR VISITORS</span>
   </div>
 
-  <!-- Countdown ring -->
-  <div class="countdown-ring" id="countdown-ring" style="display:none">
-    <svg width="64" height="64" viewBox="0 0 64 64">
-      <circle class="track" cx="32" cy="32" r="28" stroke-width="4" />
-      <circle class="fill" id="countdown-circle" cx="32" cy="32" r="28" stroke-width="4" stroke-dasharray="175.93"
-        stroke-dashoffset="0" />
-    </svg>
-    <div class="countdown-number" id="countdown-num">10</div>
-  </div>
+
 
   <!-- ── UNLOCK OVERLAY ── -->
   <div id="unlock-overlay">
     <div style="display: flex; gap: 3vw; margin-bottom: 1vw; justify-content: center; align-items: center;">
-      <img src="https://i.ibb.co.com/bgx5KFfR/Asset-13.png" alt="Asset 13" border="0" style="height: 8vw; max-height: 150px; object-fit: contain;">
-      <img src="https://i.ibb.co.com/hJdL0pCv/images-removebg-preview-2.png" alt="images removebg preview 2" border="0" style="height: 8vw; max-height: 150px; object-fit: contain;">
+      <img src="https://i.ibb.co.com/bgx5KFfR/Asset-13.png" alt="Asset 13" border="0"
+        style="height: 8vw; max-height: 150px; object-fit: contain;">
+      <img src="https://i.ibb.co.com/hJdL0pCv/images-removebg-preview-2.png" alt="images removebg preview 2" border="0"
+        style="height: 8vw; max-height: 150px; object-fit: contain;">
     </div>
     <div class="unlock-logo"
       style="font-size: clamp(1.6rem, 3.5vw, 3.2rem); line-height: 1.1; margin-bottom: 2vw; text-align: center;">PASSION
@@ -772,11 +770,6 @@
         <div class="cat-title">Educational Games</div>
         <div class="cat-divider"></div>
         <div class="project-item">
-          <span class="project-name">Faiq</span>
-          <span class="project-sub">LearningwithIB</span>
-          <div class="project-desc">Web-Based AI Study Assistant</div>
-        </div>
-        <div class="project-item">
           <span class="project-name">Doni</span>
           <span class="project-sub">The Scholar Houses</span>
           <div class="project-desc">Educational RPG where players select a house, each representing a learning topic
@@ -804,7 +797,7 @@
           <div class="project-desc">Terminal-Based Math Game</div>
         </div>
       </div>
-      
+
 
       <!-- SCIENCE -->
       <div class="category-card" style="--cat-color: var(--cat-science)">
@@ -820,6 +813,11 @@
           <span class="project-name">Salsa</span>
           <span class="project-sub">BirdDex!</span>
           <div class="project-desc">A Pokédex-styled interactive web of birds around the world</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Faiq</span>
+          <span class="project-sub">LearningwithIB</span>
+          <div class="project-desc">Web-Based AI Study Assistant</div>
         </div>
         <div class="project-item">
           <span class="project-name">Naura</span>
@@ -885,9 +883,6 @@
       const statusBar = document.getElementById('status-bar');
       const statusDot = document.getElementById('status-dot');
       const statusText = document.getElementById('status-text');
-      const countdownRing = document.getElementById('countdown-ring');
-      const countdownCircle = document.getElementById('countdown-circle');
-      const countdownNum = document.getElementById('countdown-num');
       const video = document.getElementById('input-video');
 
       /* ─── Background canvas: Particle grid ─── */
@@ -916,13 +911,13 @@
           canvas.width / 2, canvas.height / 2, 0,
           canvas.width / 2, canvas.height / 2, canvas.width * 0.75
         );
-        grad.addColorStop(0, '#0a1d42');
-        grad.addColorStop(1, '#020b1f');
+        grad.addColorStop(0, '#0a1428');
+        grad.addColorStop(1, '#050a14');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Grid lines
-        ctx.strokeStyle = 'rgba(237,197,49,0.04)';
+        ctx.strokeStyle = 'rgba(212,175,55,0.04)';
         ctx.lineWidth = 1;
         const step = 80;
         for (let x = 0; x < canvas.width; x += step) {
@@ -941,7 +936,7 @@
           if (p.y > canvas.height) p.y = 0;
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(237,197,49,${p.a * 0.5})`;
+          ctx.fillStyle = `rgba(212,175,55,${p.a * 0.5})`;
           ctx.fill();
         });
 
@@ -955,7 +950,7 @@
               ctx.beginPath();
               ctx.moveTo(particles[i].x, particles[i].y);
               ctx.lineTo(particles[j].x, particles[j].y);
-              ctx.strokeStyle = `rgba(237,197,49,${0.12 * (1 - dist / 120)})`;
+              ctx.strokeStyle = `rgba(212,175,55,${0.12 * (1 - dist / 120)})`;
               ctx.lineWidth = 0.5;
               ctx.stroke();
             }
@@ -1020,23 +1015,16 @@
 
       /* ─── Countdown ring ─── */
       function startCountdown() {
-        countdownSec = 10;
-        countdownRing.style.display = 'block';
-        countdownNum.textContent = countdownSec;
-        countdownCircle.style.strokeDashoffset = 0;
+        countdownSec = 15;
         clearInterval(countdownIntvl);
         countdownIntvl = setInterval(() => {
           countdownSec--;
-          countdownNum.textContent = countdownSec;
-          const offset = CIRCUMFERENCE * (1 - countdownSec / 10);
-          countdownCircle.style.strokeDashoffset = offset;
           if (countdownSec <= 0) { clearInterval(countdownIntvl); }
         }, 1000);
       }
 
       function stopCountdown() {
         clearInterval(countdownIntvl);
-        countdownRing.style.display = 'none';
       }
 
       /* ─── State machine ─── */
@@ -1093,7 +1081,7 @@
       function scheduleReset() {
         clearTimeout(resetTimer);
         startCountdown();
-        resetTimer = setTimeout(goIdle, 10000);
+        resetTimer = setTimeout(goIdle, 15000);
       }
 
       /* ─── MediaPipe Face Detection ─── */
@@ -1164,6 +1152,14 @@
           appState = 'idle';
           initFaceDetection();
         }, 850);
+      });
+
+      // Interaction listener: Keep awake on touch/click
+      window.addEventListener('mousedown', () => {
+        if (appState === 'welcome') scheduleReset();
+      });
+      window.addEventListener('touchstart', () => {
+        if (appState === 'welcome') scheduleReset();
       });
 
       // Voices sometimes load async
