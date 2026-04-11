@@ -1,943 +1,1172 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>Innovation Exhibition — Welcome</title>
-<meta name="description" content="AI-Powered Welcome Screen for the School Innovation Exhibition">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<style>
-/* ══════════════════════════════════════════════════════════════
-   RESET & BASE
-   ══════════════════════════════════════════════════════════════ */
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html,body{
-  width:100%;height:100%;overflow:hidden;
-  font-family:'Rajdhani','Share Tech Mono',monospace;
-  background:#020818;color:#c8dff8;
-  -webkit-font-smoothing:antialiased;
-  -webkit-tap-highlight-color:transparent;
-  user-select:none;
-}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Welcome Kiosk</title>
 
-/* ══════════════════════════════════════════════════════════════
-   ANIMATED SVG BACKGROUND
-   ══════════════════════════════════════════════════════════════ */
-#bg-svg{
-  position:fixed;inset:0;z-index:0;
-  width:100%;height:100%;
-  opacity:.35;
-}
+  <!-- MediaPipe Face Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
-/* Radial blue glow */
-#bg-glow{
-  position:fixed;inset:0;z-index:0;
-  background:
-    radial-gradient(ellipse 50% 50% at 50% 100%, rgba(0,120,255,.12) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 40% at 20% 30%, rgba(0,180,255,.06) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 50% at 80% 20%, rgba(0,100,200,.05) 0%, transparent 50%);
-}
+  <!-- Google Fonts: Orbitron (display) + Exo 2 (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap"
+    rel="stylesheet" />
 
-/* Scan line effect */
-#scanline{
-  position:fixed;inset:0;z-index:1;pointer-events:none;
-  background:repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,150,255,.015) 2px,
-    rgba(0,150,255,.015) 4px
-  );
-}
+  <style>
+    /* ─── CSS Reset & Variables ─── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-/* Floating particles */
-.particle{
-  position:fixed;
-  width:2px;height:2px;
-  background:#0af;border-radius:50%;
-  opacity:0;
-  animation:particleFloat linear infinite;
-}
-@keyframes particleFloat{
-  0%{opacity:0;transform:translateY(100vh) scale(0)}
-  10%{opacity:.6}
-  90%{opacity:.6}
-  100%{opacity:0;transform:translateY(-10vh) scale(1)}
-}
+    :root {
+      --bg-deep: #020b1f;
+      /* Navy */
+      --bg-mid: #0e224e;
+      --accent: #edc531;
+      /* Gold */
+      --accent2: #e30a1c;
+      /* Red */
+      --accent3: #3b82f6;
+      /* Blue */
+      --text-main: #ffffff;
+      --text-dim: #9ab3d5;
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(237, 197, 49, 0.2);
+      --glass-blur: blur(16px);
 
-/* ══════════════════════════════════════════════════════════════
-   HIDDEN VIDEO
-   ══════════════════════════════════════════════════════════════ */
-#cam{position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0}
+      /* Category colours */
+      --cat-health: #ef4444;
+      --cat-games: #f59e0b;
+      --cat-science: #10b981;
+      --cat-social: #8b5cf6;
+    }
 
-/* ══════════════════════════════════════════════════════════════
-   UNLOCK OVERLAY  (Phase A)
-   ══════════════════════════════════════════════════════════════ */
-#unlock{
-  position:fixed;inset:0;z-index:1000;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:rgba(2,8,24,.95);
-  backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
-  transition:opacity 1s ease,visibility 1s ease;
-}
-#unlock.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-deep);
+      font-family: 'Exo 2', sans-serif;
+      color: var(--text-main);
+      user-select: none;
+    }
 
-/* Hex logo */
-.hex-logo{
-  width:min(18vw,18vh);height:min(18vw,18vh);
-  margin-bottom:3vh;
-  animation:hexSpin 20s linear infinite;
-  filter:drop-shadow(0 0 20px rgba(0,150,255,.3));
-}
-@keyframes hexSpin{
-  0%{transform:rotate(0deg)}
-  100%{transform:rotate(360deg)}
-}
+    /* ─── Hidden video for MediaPipe ─── */
+    #input-video {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
 
-#unlock h1{
-  font-family:'Orbitron',monospace;
-  font-size:clamp(1.6rem,4.5vw,3.8rem);font-weight:700;
-  color:#0af;
-  text-shadow:0 0 30px rgba(0,170,255,.4),0 0 60px rgba(0,170,255,.15);
-  margin-bottom:.8vh;letter-spacing:.15em;
-  text-transform:uppercase;
-}
-#unlock .subtitle{
-  font-family:'Share Tech Mono',monospace;
-  font-size:clamp(.7rem,1.4vw,1rem);
-  color:rgba(0,170,255,.4);
-  letter-spacing:.3em;text-transform:uppercase;
-  margin-bottom:5vh;
-}
+    /* ════════════════════════════════════
+       LAYER 0 – Animated Background Canvas
+       ════════════════════════════════════ */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
 
-#startBtn{
-  padding:2vh 5vw;
-  font-family:'Orbitron',monospace;
-  font-size:clamp(.85rem,2vw,1.4rem);font-weight:600;
-  color:#0af;
-  background:transparent;
-  border:1px solid rgba(0,170,255,.3);
-  cursor:pointer;
-  position:relative;overflow:hidden;
-  letter-spacing:.2em;text-transform:uppercase;
-  clip-path:polygon(8% 0,100% 0,100% 70%,92% 100%,0 100%,0 30%);
-  transition:all .4s ease;
-}
-#startBtn::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(0,170,255,.08),rgba(0,100,200,.15));
-  opacity:0;transition:opacity .4s ease;
-}
-#startBtn::after{
-  content:'';position:absolute;top:0;left:-100%;
-  width:100%;height:100%;
-  background:linear-gradient(90deg,transparent,rgba(0,170,255,.15),transparent);
-  transition:left .6s ease;
-}
-#startBtn:hover::before,#startBtn:focus::before{opacity:1}
-#startBtn:hover::after,#startBtn:focus::after{left:100%}
-#startBtn:hover,#startBtn:focus{
-  border-color:rgba(0,170,255,.6);
-  box-shadow:0 0 30px rgba(0,170,255,.2),inset 0 0 30px rgba(0,170,255,.05);
-  text-shadow:0 0 10px rgba(0,170,255,.5);
-  outline:none;
-}
-#startBtn:active{transform:scale(.97)}
+    /* ════════════════════════════════════
+       LAYER 1 – UNLOCK OVERLAY
+       ════════════════════════════════════ */
+    #unlock-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse at center, #0a1d42 0%, #020b1f 70%);
+      transition: opacity 0.8s ease;
+    }
 
-/* Corner brackets decoration */
-.corner-decor{
-  position:absolute;width:clamp(60px,12vw,120px);height:clamp(60px,12vw,120px);
-  opacity:.15;
-}
-.corner-decor.tl{top:3vh;left:3vw}
-.corner-decor.tr{top:3vh;right:3vw;transform:scaleX(-1)}
-.corner-decor.bl{bottom:3vh;left:3vw;transform:scaleY(-1)}
-.corner-decor.br{bottom:3vh;right:3vw;transform:scale(-1)}
+    #unlock-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
 
-/* ══════════════════════════════════════════════════════════════
-   IDLE STATE  (Phase B)
-   ══════════════════════════════════════════════════════════════ */
-#idle{
-  position:fixed;inset:0;z-index:10;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  transition:opacity 1s ease,visibility 1s ease;
-}
-#idle.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .unlock-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 900;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      text-shadow: 0 0 40px rgba(237, 197, 49, 0.6);
+      margin-bottom: 1vw;
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
 
-/* Radar sweep */
-.radar-container{
-  position:absolute;
-  width:min(40vw,40vh);height:min(40vw,40vh);
-}
-.radar-ring{
-  position:absolute;inset:0;
-  border:1px solid rgba(0,170,255,.1);border-radius:50%;
-}
-.radar-ring:nth-child(2){inset:15%;border-color:rgba(0,170,255,.08)}
-.radar-ring:nth-child(3){inset:30%;border-color:rgba(0,170,255,.06)}
-.radar-sweep{
-  position:absolute;inset:0;
-  border-radius:50%;
-  background:conic-gradient(from 0deg,transparent 0deg,rgba(0,170,255,.15) 40deg,transparent 80deg);
-  animation:radarSweep 4s linear infinite;
-}
-@keyframes radarSweep{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .unlock-sub {
+      font-size: clamp(0.8rem, 1.5vw, 1.2rem);
+      color: var(--text-dim);
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      margin-bottom: 6vw;
+    }
 
-.radar-crosshair{
-  position:absolute;inset:0;
-  opacity:.1;
-}
+    #start-btn {
+      position: relative;
+      padding: 1.4vw 4vw;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.9rem, 1.8vw, 1.4rem);
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      color: var(--bg-deep);
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+      clip-path: polygon(1.5em 0%, 100% 0%, calc(100% - 1.5em) 100%, 0% 100%);
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 30px rgba(237, 197, 49, 0.5);
+    }
 
-#idle .pulse-text{
-  font-family:'Orbitron',monospace;
-  font-size:clamp(1.2rem,3.5vw,2.8rem);font-weight:500;
-  text-align:center;padding:0 4vw;
-  color:#0af;
-  text-shadow:0 0 20px rgba(0,170,255,.3);
-  animation:textPulse 3s ease-in-out infinite;
-  transition:opacity .5s ease,transform .5s ease;
-  z-index:2;
-}
-#idle .sub-text{
-  font-family:'Share Tech Mono',monospace;
-  font-size:clamp(.65rem,1.2vw,.9rem);
-  color:rgba(0,170,255,.3);margin-top:2vh;
-  letter-spacing:.15em;text-transform:uppercase;
-  animation:textPulse 3s ease-in-out infinite;
-  animation-delay:.5s;
-  transition:opacity .5s ease,transform .5s ease;
-  z-index:2;
-}
-@keyframes textPulse{
-  0%,100%{opacity:.5}
-  50%{opacity:1}
-}
+    #start-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 55px rgba(237, 197, 49, 0.9);
+    }
 
-/* Camera status indicator */
-#camStatus{
-  position:fixed;bottom:2vh;right:2vw;z-index:50;
-  display:flex;align-items:center;gap:.5vw;
-  font-family:'Share Tech Mono',monospace;
-  font-size:clamp(.55rem,.9vw,.75rem);
-  color:rgba(0,170,255,.3);
-  transition:opacity .5s ease;
-}
-#camStatus .dot{
-  width:6px;height:6px;border-radius:50%;
-  background:#0af;
-  box-shadow:0 0 6px #0af;
-  animation:dotPulse 2s ease-in-out infinite;
-}
-#camStatus.error .dot{background:#f44;box-shadow:0 0 6px #f44;animation:none}
-@keyframes dotPulse{0%,100%{opacity:.3}50%{opacity:1}}
+    #start-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.25) 50%, transparent 60%);
+      animation: shimmer 2.5s infinite;
+    }
 
-/* ══════════════════════════════════════════════════════════════
-   WIPE TRANSITION
-   ══════════════════════════════════════════════════════════════ */
-#wipe{
-  position:fixed;inset:0;z-index:100;
-  background:linear-gradient(135deg,#001830,#003366,#0066cc);
-  transform:scaleX(0);transform-origin:left;
-  will-change:transform;
-  pointer-events:none;
-}
-#wipe.animate-in{animation:wipeIn .5s cubic-bezier(.77,0,.18,1) forwards}
-#wipe.animate-out{animation:wipeOut .5s cubic-bezier(.77,0,.18,1) forwards}
-@keyframes wipeIn{from{transform:scaleX(0);transform-origin:left}to{transform:scaleX(1);transform-origin:left}}
-@keyframes wipeOut{from{transform:scaleX(1);transform-origin:right}to{transform:scaleX(0);transform-origin:right}}
+    /* ════════════════════════════════════
+       LAYER 2 – IDLE STATE
+       ════════════════════════════════════ */
+    #idle-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
 
-/* ══════════════════════════════════════════════════════════════
-   WELCOME STATE  (Phase C)
-   ══════════════════════════════════════════════════════════════ */
-#welcome{
-  position:fixed;inset:0;z-index:20;
-  display:flex;flex-direction:column;
-  padding:2.5vh 2.5vw;
-  opacity:0;visibility:hidden;
-  transition:opacity .6s ease,visibility .6s ease;
-}
-#welcome.visible{opacity:1;visibility:visible}
+    #idle-screen.hidden {
+      opacity: 0;
+      transform: scale(1.05);
+      pointer-events: none;
+    }
 
-#welcome header{
-  text-align:center;margin-bottom:2vh;flex-shrink:0;
-  position:relative;
-}
+    .idle-eyebrow {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.6rem, 1.2vw, 1rem);
+      letter-spacing: 0.6em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 2vw;
+      animation: fade-blink 2s ease-in-out infinite;
+    }
 
-/* HUD top bar */
-.hud-bar{
-  display:flex;align-items:center;justify-content:center;
-  gap:2vw;margin-bottom:1.5vh;
-}
-.hud-line{
-  flex:1;max-width:20vw;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(0,170,255,.3),transparent);
-}
-.hud-diamond{
-  width:8px;height:8px;
-  background:#0af;
-  transform:rotate(45deg);
-  box-shadow:0 0 8px rgba(0,170,255,.5);
-}
+    .idle-main-text {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 5.5vw, 5.5rem);
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 80vw;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--accent) 50%, #e2e8f0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 25px rgba(237, 197, 49, 0.4));
+      animation: text-shimmer 4s ease infinite;
+      background-size: 200% 200%;
+    }
 
-#welcome header h1{
-  font-family:'Orbitron',monospace;
-  font-size:clamp(1.4rem,3.5vw,3rem);font-weight:700;
-  color:#0af;
-  text-shadow:0 0 30px rgba(0,170,255,.3),0 0 60px rgba(0,170,255,.1);
-  letter-spacing:.12em;text-transform:uppercase;
-}
-#welcome header p{
-  font-family:'Share Tech Mono',monospace;
-  font-size:clamp(.6rem,1.1vw,.85rem);
-  color:rgba(0,170,255,.3);
-  letter-spacing:.2em;text-transform:uppercase;
-  margin-top:.5vh;
-}
+    .idle-cta {
+      margin-top: 4vw;
+      font-size: clamp(0.8rem, 1.8vw, 1.5rem);
+      color: var(--text-dim);
+      letter-spacing: 0.2em;
+      display: flex;
+      align-items: center;
+      gap: 1em;
+    }
 
-/* Category Grid */
-.cat-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:1.5vw;flex:1;min-height:0;
-}
+    .idle-cta::before,
+    .idle-cta::after {
+      content: '';
+      width: 4vw;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent));
+    }
 
-/* Glass Card — futuristic panel */
-.cat-card{
-  background:rgba(0,30,60,.4);
-  border:1px solid rgba(0,170,255,.1);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  padding:2vh 1.2vw 1.5vh;
-  display:flex;flex-direction:column;
-  opacity:0;transform:translateY(25px);
-  transition:opacity .5s ease,transform .5s ease,border-color .4s ease,box-shadow .4s ease;
-  overflow:hidden;position:relative;
-  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
-}
-.cat-card.show{opacity:1;transform:translateY(0)}
-.cat-card:hover{
-  border-color:rgba(0,170,255,.25);
-  box-shadow:0 0 30px rgba(0,100,255,.1),inset 0 0 30px rgba(0,100,255,.03);
-}
+    .idle-cta::after {
+      background: linear-gradient(90deg, var(--accent), transparent);
+    }
 
-/* Corner cut accent line */
-.cat-card::before{
-  content:'';position:absolute;top:0;left:0;right:0;
-  height:1px;
-  background:linear-gradient(90deg,#0af,rgba(0,170,255,.3),transparent);
-}
-.cat-card::after{
-  content:'';position:absolute;bottom:0;right:0;
-  width:1px;height:40%;
-  background:linear-gradient(180deg,transparent,rgba(0,170,255,.1));
-}
+    /* Scanning line */
+    .scan-ring {
+      position: absolute;
+      width: 22vw;
+      height: 22vw;
+      border-radius: 50%;
+      border: 1px solid rgba(237, 197, 49, 0.15);
+      animation: ring-pulse 3s ease-out infinite;
+    }
 
-/* Card header with SVG icon */
-.card-header{
-  display:flex;align-items:center;gap:.8vw;
-  margin-bottom:1.5vh;
-  padding-bottom:1vh;
-  border-bottom:1px solid rgba(0,170,255,.08);
-}
-.card-icon{
-  width:clamp(28px,2.8vw,42px);height:clamp(28px,2.8vw,42px);
-  flex-shrink:0;
-  filter:drop-shadow(0 0 6px rgba(0,170,255,.4));
-}
-.card-icon svg{width:100%;height:100%}
+    .scan-ring:nth-child(2) {
+      animation-delay: 1s;
+    }
 
-.cat-card h2{
-  font-family:'Orbitron',monospace;
-  font-size:clamp(.6rem,1.15vw,1rem);font-weight:600;
-  color:#0af;
-  letter-spacing:.08em;text-transform:uppercase;
-  line-height:1.2;
-}
+    .scan-ring:nth-child(3) {
+      animation-delay: 2s;
+    }
 
-/* Card number tag */
-.card-num{
-  font-family:'Share Tech Mono',monospace;
-  font-size:clamp(.5rem,.7vw,.6rem);
-  color:rgba(0,170,255,.2);
-  letter-spacing:.1em;
-  margin-bottom:.3vh;
-}
+    .scan-rings-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
 
-.cat-card ul{
-  list-style:none;flex:1;display:flex;flex-direction:column;gap:.6vh;
-}
-.cat-card li{
-  display:flex;align-items:center;gap:.4vw;
-  font-size:clamp(.6rem,1.1vw,.9rem);
-  color:rgba(200,220,240,.65);
-  line-height:1.35;
-  font-weight:500;
-  padding:.2vh 0;
-  transition:color .3s ease;
-}
-.cat-card li:hover{color:rgba(200,220,240,.95)}
-.cat-card li .name{
-  font-weight:700;
-  color:rgba(200,220,240,.85);
-  white-space:nowrap;
-}
-.cat-card li .proj{
-  color:rgba(0,170,255,.35);font-weight:400;
-  font-size:.85em;
-}
-.cat-card li .chevron{
-  width:6px;height:10px;flex-shrink:0;
-  opacity:.25;
-}
+    /* Corner brackets */
+    .corners {
+      position: fixed;
+      inset: 3vw;
+      pointer-events: none;
+      z-index: 9;
+    }
 
-/* ══════════════════════════════════════════════════════════════
-   FOOTER / BRANDING
-   ══════════════════════════════════════════════════════════════ */
-#brand{
-  position:fixed;bottom:1.5vh;left:50%;transform:translateX(-50%);
-  z-index:30;
-  font-family:'Share Tech Mono',monospace;
-  font-size:clamp(.5rem,.75vw,.65rem);
-  color:rgba(0,170,255,.15);
-  letter-spacing:.3em;text-transform:uppercase;
-}
+    .corner {
+      position: absolute;
+      width: 4vw;
+      height: 4vw;
+      border-color: rgba(237, 197, 49, 0.4);
+      border-style: solid;
+    }
 
-/* ══════════════════════════════════════════════════════════════
-   ANDROID TV / RESPONSIVE
-   ══════════════════════════════════════════════════════════════ */
-@media (max-aspect-ratio:1/1){
-  .cat-grid{grid-template-columns:repeat(2,1fr);gap:2vh 2vw}
-}
-@media (max-width:600px){
-  .cat-grid{grid-template-columns:1fr;gap:2vh}
-  #welcome{padding:2vh 4vw}
-}
+    .corner.tl {
+      top: 0;
+      left: 0;
+      border-width: 2px 0 0 2px;
+    }
 
-/* Focus for TV remote navigation */
-*:focus-visible{
-  outline:1px solid rgba(0,170,255,.4);
-  outline-offset:4px;
-}
-</style>
+    .corner.tr {
+      top: 0;
+      right: 0;
+      border-width: 2px 2px 0 0;
+    }
+
+    .corner.bl {
+      bottom: 0;
+      left: 0;
+      border-width: 0 0 2px 2px;
+    }
+
+    .corner.br {
+      bottom: 0;
+      right: 0;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Status bar */
+    .status-bar {
+      position: fixed;
+      bottom: 3vw;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 1vw;
+      font-size: clamp(0.5rem, 1vw, 0.85rem);
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+    }
+
+    .status-dot {
+      width: 0.6vw;
+      height: 0.6vw;
+      min-width: 6px;
+      min-height: 6px;
+      border-radius: 50%;
+      background: var(--accent3);
+      box-shadow: 0 0 8px var(--accent3);
+      animation: dot-blink 1.5s ease-in-out infinite;
+    }
+
+    .status-dot.red {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    /* ════════════════════════════════════
+       LAYER 3 – WELCOME / PROJECT MENU
+       ════════════════════════════════════ */
+    #welcome-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 3vw 4vw;
+      opacity: 0;
+      transform: translateY(3%);
+      pointer-events: none;
+      transition: opacity 0.7s ease, transform 0.7s ease;
+      overflow-y: auto;
+    }
+
+    #welcome-screen.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Countdown ring */
+    .countdown-ring {
+      position: fixed;
+      top: 2.5vw;
+      right: 3.5vw;
+      z-index: 30;
+    }
+
+    .countdown-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .countdown-ring circle.track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+    }
+
+    .countdown-ring circle.fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear;
+    }
+
+    .countdown-number {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.7rem, 1.5vw, 1.2rem);
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .welcome-header {
+      text-align: center;
+      margin-bottom: 2.5vw;
+    }
+
+    .welcome-header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.8rem, 4.5vw, 4.5rem);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      background: linear-gradient(90deg, var(--accent), #fff, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 20px rgba(237, 197, 49, 0.3));
+    }
+
+    .welcome-header p {
+      font-size: clamp(0.7rem, 1.4vw, 1.1rem);
+      color: var(--text-dim);
+      letter-spacing: 0.3em;
+      margin-top: 0.5vw;
+    }
+
+    /* ── 4-column grid ── */
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2vw;
+      width: 100%;
+      max-width: 1800px;
+    }
+
+    .category-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-radius: 1.2vw;
+      padding: 2vw 1.8vw;
+      position: relative;
+      overflow: hidden;
+      animation: card-in 0.6s ease both;
+    }
+
+    .category-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, var(--cat-color, var(--accent)) 0%, transparent 60%);
+      opacity: 0.06;
+      pointer-events: none;
+    }
+
+    .category-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--cat-color, var(--accent)), transparent);
+      border-radius: 1.2vw 1.2vw 0 0;
+    }
+
+    /* stagger */
+    .category-card:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+
+    .category-card:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .category-card:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    .category-card:nth-child(4) {
+      animation-delay: 0.4s;
+    }
+
+    .cat-icon {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      margin-bottom: 0.8vw;
+    }
+
+    .cat-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(0.8rem, 1.4vw, 1.2rem);
+      font-weight: 700;
+      color: var(--cat-color, var(--accent));
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.4vw;
+    }
+
+    .cat-divider {
+      height: 1px;
+      background: linear-gradient(90deg, var(--cat-color, var(--accent)), transparent);
+      margin-bottom: 1.2vw;
+      opacity: 0.4;
+    }
+
+    .project-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1vw;
+      padding: 1vw;
+      border-radius: 0.8vw;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .project-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .project-item:hover {
+      transform: translateY(-0.4vw) scale(1.02);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 0.8vw 2vw rgba(0, 0, 0, 0.4), 0 0 1.5vw var(--cat-color, var(--accent));
+      border-color: var(--cat-color, var(--accent));
+      z-index: 2;
+    }
+
+    .project-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--cat-color, var(--accent));
+      opacity: 0.4;
+      transition: opacity 0.3s;
+    }
+
+    .project-item:hover::before {
+      opacity: 1;
+    }
+
+    .project-name {
+      font-size: clamp(0.85rem, 1.2vw, 1.1rem);
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    .project-sub {
+      font-size: clamp(0.7rem, 1vw, 0.9rem);
+      color: var(--cat-color, var(--accent));
+      opacity: 0.9;
+      margin-top: 0.4vw;
+      font-weight: 600;
+    }
+
+    .project-desc {
+      font-size: clamp(0.6rem, 0.85vw, 0.8rem);
+      color: var(--text-dim);
+      margin-top: 0.6vw;
+      line-height: 1.4;
+      transition: color 0.3s ease;
+    }
+
+    .project-item:hover .project-desc {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* ════════════════════════════════════
+       KEYFRAMES
+       ════════════════════════════════════ */
+    @keyframes glow-pulse {
+
+      0%,
+      100% {
+        text-shadow: 0 0 40px rgba(237, 197, 49, 0.6);
+      }
+
+      50% {
+        text-shadow: 0 0 80px rgba(237, 197, 49, 1), 0 0 120px rgba(237, 197, 49, 0.4);
+      }
+    }
+
+    @keyframes shimmer {
+      0% {
+        transform: translateX(-100%) skewX(-15deg);
+      }
+
+      100% {
+        transform: translateX(200%) skewX(-15deg);
+      }
+    }
+
+    @keyframes text-shimmer {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    @keyframes fade-blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    @keyframes ring-pulse {
+      0% {
+        transform: scale(0.6);
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+    }
+
+    @keyframes dot-blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
+    }
+
+    @keyframes card-in {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ─── Wipe transition overlay ─── */
+    #wipe {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+
+    #wipe.active {
+      animation: wipe-through 0.9s cubic-bezier(0.77, 0, 0.18, 1) forwards;
+    }
+
+    @keyframes wipe-through {
+      0% {
+        transform: translateX(-100%);
+      }
+
+      45% {
+        transform: translateX(0%);
+      }
+
+      55% {
+        transform: translateX(0%);
+      }
+
+      100% {
+        transform: translateX(105%);
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- ═══════ SVG BACKGROUND — Circuit grid ═══════ -->
-<svg id="bg-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 1920 1080">
-  <defs>
-    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-      <path d="M60 0L0 0 0 60" fill="none" stroke="rgba(0,170,255,.06)" stroke-width=".5"/>
-    </pattern>
-    <linearGradient id="fadeBottom" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#020818" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#020818" stop-opacity="1"/>
-    </linearGradient>
-    <linearGradient id="lineGlow" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#0af" stop-opacity="0"/>
-      <stop offset="50%" stop-color="#0af" stop-opacity=".4"/>
-      <stop offset="100%" stop-color="#0af" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <rect fill="url(#grid)" width="1920" height="1080"/>
-  <rect fill="url(#fadeBottom)" width="1920" height="1080"/>
-  <!-- Horizontal accent lines -->
-  <line x1="0" y1="200" x2="1920" y2="200" stroke="rgba(0,170,255,.03)" stroke-width="1"/>
-  <line x1="0" y1="880" x2="1920" y2="880" stroke="rgba(0,170,255,.03)" stroke-width="1"/>
-  <!-- Animated data stream lines -->
-  <line x1="300" y1="0" x2="300" y2="1080" stroke="rgba(0,170,255,.02)" stroke-width="1"/>
-  <line x1="960" y1="0" x2="960" y2="1080" stroke="rgba(0,170,255,.02)" stroke-width="1"/>
-  <line x1="1620" y1="0" x2="1620" y2="1080" stroke="rgba(0,170,255,.02)" stroke-width="1"/>
-  <!-- Glowing nodes -->
-  <circle cx="300" cy="200" r="3" fill="#0af" opacity=".15">
-    <animate attributeName="opacity" values=".05;.2;.05" dur="4s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="960" cy="540" r="3" fill="#0af" opacity=".15">
-    <animate attributeName="opacity" values=".05;.25;.05" dur="3s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="1620" cy="880" r="3" fill="#0af" opacity=".15">
-    <animate attributeName="opacity" values=".05;.2;.05" dur="5s" repeatCount="indefinite"/>
-  </circle>
-</svg>
+  <!-- Hidden video feed -->
+  <video id="input-video" autoplay muted playsinline></video>
 
-<div id="bg-glow"></div>
-<div id="scanline"></div>
+  <!-- Animated background canvas -->
+  <canvas id="bg-canvas"></canvas>
 
-<!-- Floating particles (created via JS) -->
-<div id="particles"></div>
+  <!-- Wipe overlay -->
+  <div id="wipe"></div>
 
-<!-- Hidden camera feed -->
-<video id="cam" autoplay playsinline muted></video>
+  <!-- Corner brackets (always visible after unlock) -->
+  <div class="corners" id="corners" style="display:none">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
 
-<!-- ═══════ PHASE A: Unlock Overlay ═══════ -->
-<div id="unlock">
-  <!-- Corner bracket decorations -->
-  <svg class="corner-decor tl" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 30L0 0L30 0" stroke="#0af" stroke-width="1"/>
-    <path d="M0 15L0 5L5 5L5 0L15 0" stroke="#0af" stroke-width=".5" opacity=".4"/>
-  </svg>
-  <svg class="corner-decor tr" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 30L0 0L30 0" stroke="#0af" stroke-width="1"/>
-    <path d="M0 15L0 5L5 5L5 0L15 0" stroke="#0af" stroke-width=".5" opacity=".4"/>
-  </svg>
-  <svg class="corner-decor bl" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 30L0 0L30 0" stroke="#0af" stroke-width="1"/>
-    <path d="M0 15L0 5L5 5L5 0L15 0" stroke="#0af" stroke-width=".5" opacity=".4"/>
-  </svg>
-  <svg class="corner-decor br" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 30L0 0L30 0" stroke="#0af" stroke-width="1"/>
-    <path d="M0 15L0 5L5 5L5 0L15 0" stroke="#0af" stroke-width=".5" opacity=".4"/>
-  </svg>
+  <!-- Status bar -->
+  <div class="status-bar" id="status-bar" style="display:none">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">SCANNING FOR VISITORS</span>
+  </div>
 
-  <!-- Rotating hex ring logo -->
-  <svg class="hex-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="hexGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#0066cc"/>
-        <stop offset="100%" stop-color="#00aaff"/>
-      </linearGradient>
-    </defs>
-    <polygon points="100,10 178,55 178,145 100,190 22,145 22,55" fill="none" stroke="url(#hexGrad)" stroke-width="1.5" opacity=".6"/>
-    <polygon points="100,30 162,65 162,135 100,170 38,135 38,65" fill="none" stroke="#0af" stroke-width=".5" opacity=".3"/>
-    <polygon points="100,50 145,75 145,125 100,150 55,125 55,75" fill="none" stroke="#0af" stroke-width=".5" opacity=".15"/>
-    <!-- Inner eye / AI symbol -->
-    <circle cx="100" cy="100" r="15" fill="none" stroke="#0af" stroke-width="1" opacity=".5"/>
-    <circle cx="100" cy="100" r="4" fill="#0af" opacity=".6"/>
-    <line x1="100" y1="85" x2="100" y2="55" stroke="#0af" stroke-width=".5" opacity=".3"/>
-    <line x1="100" y1="115" x2="100" y2="145" stroke="#0af" stroke-width=".5" opacity=".3"/>
-    <line x1="85" y1="100" x2="55" y2="100" stroke="#0af" stroke-width=".5" opacity=".3"/>
-    <line x1="115" y1="100" x2="145" y2="100" stroke="#0af" stroke-width=".5" opacity=".3"/>
-  </svg>
-
-  <h1>Innovation</h1>
-  <p class="subtitle">Exhibition · AI Welcome System</p>
-  <button id="startBtn" autofocus>Initialize Experience</button>
-</div>
-
-<!-- ═══════ PHASE B: Idle ═══════ -->
-<div id="idle" class="hidden">
-  <div class="radar-container">
-    <div class="radar-ring"></div>
-    <div class="radar-ring"></div>
-    <div class="radar-ring"></div>
-    <div class="radar-sweep"></div>
-    <!-- Crosshair SVG -->
-    <svg class="radar-crosshair" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-      <line x1="100" y1="0" x2="100" y2="200" stroke="#0af" stroke-width=".5"/>
-      <line x1="0" y1="100" x2="200" y2="100" stroke="#0af" stroke-width=".5"/>
-      <circle cx="100" cy="100" r="5" fill="none" stroke="#0af" stroke-width=".5"/>
+  <!-- Countdown ring -->
+  <div class="countdown-ring" id="countdown-ring" style="display:none">
+    <svg width="64" height="64" viewBox="0 0 64 64">
+      <circle class="track" cx="32" cy="32" r="28" stroke-width="4" />
+      <circle class="fill" id="countdown-circle" cx="32" cy="32" r="28" stroke-width="4" stroke-dasharray="175.93"
+        stroke-dashoffset="0" />
     </svg>
+    <div class="countdown-number" id="countdown-num">10</div>
   </div>
-  <p class="pulse-text" id="idleMain">Step Closer to Begin</p>
-  <p class="sub-text" id="idleSub">Something amazing is waiting for you</p>
-</div>
 
-<!-- Wipe transition -->
-<div id="wipe"></div>
-
-<!-- ═══════ PHASE C: Welcome ═══════ -->
-<div id="welcome">
-  <header>
-    <div class="hud-bar">
-      <div class="hud-line"></div>
-      <div class="hud-diamond"></div>
-      <div class="hud-line"></div>
+  <!-- ── UNLOCK OVERLAY ── -->
+  <div id="unlock-overlay">
+    <div style="display: flex; gap: 3vw; margin-bottom: 1vw; justify-content: center; align-items: center;">
+      <img src="https://i.ibb.co.com/bgx5KFfR/Asset-13.png" alt="Asset 13" border="0" style="height: 8vw; max-height: 150px; object-fit: contain;">
+      <img src="https://i.ibb.co.com/hR2dZL30/images.png" alt="images" border="0" style="height: 8vw; max-height: 150px; object-fit: contain;">
     </div>
-    <h1>Welcome</h1>
-    <p>Explore the innovation projects below</p>
-  </header>
+    <div class="unlock-logo"
+      style="font-size: clamp(1.6rem, 3.5vw, 3.2rem); line-height: 1.1; margin-bottom: 2vw; text-align: center;">PASSION
+      PROJECT EXHIBITION 2026</div>
+    <div class="unlock-sub">AI Smart Welcome Kiosk</div>
+    <button id="start-btn">▶ &nbsp; START EXPERIENCE</button>
+  </div>
 
-  <div class="cat-grid">
-    <!-- ─── Card 1: Health ─── -->
-    <div class="cat-card" id="card-health">
-      <div class="card-num">01</div>
-      <div class="card-header">
-        <div class="card-icon">
-          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none">
-            <path d="M24 42S6 28 6 17a9 9 0 0118 0 9 9 0 0118 0c0 11-18 25-18 25z" stroke="#0af" stroke-width="1.5" fill="rgba(0,170,255,.08)"/>
-            <path d="M17 20h14M24 16v8" stroke="#0af" stroke-width="1" opacity=".5"/>
-          </svg>
-        </div>
-        <h2>Health &amp; Well-Being</h2>
-      </div>
-      <ul>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Jonathan</span><span class="proj">— Fittin</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Kamila</span><span class="proj">— Mindful Moments</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Azka</span><span class="proj">— A Space to Breathe</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Athar</span><span class="proj">— Patho-Predict</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Gavin</span><span class="proj">— Plates of Inequality</span></li>
-      </ul>
+  <!-- ── IDLE SCREEN ── -->
+  <div id="idle-screen" style="display:none">
+    <div class="scan-rings-wrapper">
+      <div class="scan-ring"></div>
+      <div class="scan-ring"></div>
+      <div class="scan-ring"></div>
+    </div>
+    <div class="idle-eyebrow">AI Detection Active</div>
+    <div class="idle-main-text">Step Forward<br>to Explore Our<br>Projects</div>
+    <div class="idle-cta">Approach the screen</div>
+  </div>
+
+  <!-- ── WELCOME SCREEN ── -->
+  <div id="welcome-screen">
+    <div class="welcome-header">
+      <h1>Welcome, Explorer!</h1>
+      <p>DISCOVER STUDENT INNOVATIONS ACROSS FOUR DISCIPLINES</p>
     </div>
 
-    <!-- ─── Card 2: Games ─── -->
-    <div class="cat-card" id="card-games">
-      <div class="card-num">02</div>
-      <div class="card-header">
-        <div class="card-icon">
-          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none">
-            <rect x="6" y="14" width="36" height="22" rx="4" stroke="#0af" stroke-width="1.5" fill="rgba(0,170,255,.08)"/>
-            <circle cx="16" cy="25" r="4" stroke="#0af" stroke-width="1" opacity=".5"/>
-            <circle cx="34" cy="22" r="2" stroke="#0af" stroke-width="1" opacity=".5"/>
-            <circle cx="30" cy="28" r="2" stroke="#0af" stroke-width="1" opacity=".5"/>
-            <path d="M16 21v8M12 25h8" stroke="#0af" stroke-width=".8" opacity=".4"/>
-          </svg>
-        </div>
-        <h2>Educational Games</h2>
-      </div>
-      <ul>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Doni</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Syamil</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Gentle</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Parnel</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Kemas</span><span class="proj">— Innovation Project</span></li>
-      </ul>
-    </div>
+    <div class="project-grid">
 
-    <!-- ─── Card 3: Science ─── -->
-    <div class="cat-card" id="card-science">
-      <div class="card-num">03</div>
-      <div class="card-header">
-        <div class="card-icon">
-          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none">
-            <path d="M18 8v16l-8 14a3 3 0 003 3h22a3 3 0 003-3l-8-14V8" stroke="#0af" stroke-width="1.5" fill="rgba(0,170,255,.08)"/>
-            <line x1="16" y1="8" x2="32" y2="8" stroke="#0af" stroke-width="1" opacity=".5"/>
-            <circle cx="22" cy="34" r="2" fill="#0af" opacity=".3"/>
-            <circle cx="28" cy="31" r="1.5" fill="#0af" opacity=".2"/>
-            <circle cx="25" cy="36" r="1" fill="#0af" opacity=".25"/>
-          </svg>
+      <!-- HEALTH -->
+      <div class="category-card" style="--cat-color: var(--cat-health)">
+        <div class="cat-icon">🩺</div>
+        <div class="cat-title">Health &amp; Well-Being</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Jonathan</span>
+          <span class="project-sub">Fittin</span>
+          <div class="project-desc">Web-based AI about health &amp; well-being</div>
         </div>
-        <h2>Science &amp; Environment</h2>
+        <div class="project-item">
+          <span class="project-name">Kamila</span>
+          <span class="project-sub">Mindful Moments</span>
+          <div class="project-desc">Interactive web survey that promotes mental well-being</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Azka</span>
+          <span class="project-sub">A Space to Breathe</span>
+          <div class="project-desc">Digital wellbeing platform where students can share thoughts and receive
+            AI-generated emotional support</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Gavin</span>
+          <span class="project-sub">Plates of Inequality</span>
+          <div class="project-desc">Web illustrating undernutrition and unequal access to food and hunger</div>
+        </div>
       </div>
-      <ul>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Hadziq Ula</span><span class="proj">— TerraSense</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Salsa</span><span class="proj">— BirdDex!</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Naura</span><span class="proj">— Nuclear Reactor Sim</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Faiq</span><span class="proj">— LearningwithIB</span></li>
-      </ul>
-    </div>
 
-    <!-- ─── Card 4: Social ─── -->
-    <div class="cat-card" id="card-social">
-      <div class="card-num">04</div>
-      <div class="card-header">
-        <div class="card-icon">
-          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none">
-            <circle cx="24" cy="16" r="7" stroke="#0af" stroke-width="1.5" fill="rgba(0,170,255,.08)"/>
-            <path d="M10 40c0-8 6-14 14-14s14 6 14 14" stroke="#0af" stroke-width="1.5" fill="rgba(0,170,255,.05)"/>
-            <circle cx="38" cy="14" r="4" stroke="#0af" stroke-width="1" opacity=".35"/>
-            <circle cx="10" cy="14" r="4" stroke="#0af" stroke-width="1" opacity=".35"/>
-            <path d="M34 16a8 8 0 018 8" stroke="#0af" stroke-width=".8" opacity=".25"/>
-            <path d="M14 16a8 8 0 00-8 8" stroke="#0af" stroke-width=".8" opacity=".25"/>
-          </svg>
+      <!-- GAMES -->
+      <div class="category-card" style="--cat-color: var(--cat-games)">
+        <div class="cat-icon">🎮</div>
+        <div class="cat-title">Educational Games</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Faiq</span>
+          <span class="project-sub">LearningwithIB</span>
+          <div class="project-desc">Web-Based AI Study Assistant</div>
         </div>
-        <h2>Social &amp; Self-Management</h2>
+        <div class="project-item">
+          <span class="project-name">Doni</span>
+          <span class="project-sub">The Scholar Houses</span>
+          <div class="project-desc">Educational RPG where players select a house, each representing a learning topic
+          </div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Syamil</span>
+          <span class="project-sub">Darsa Math Clash</span>
+          <div class="project-desc">Interactive math quiz game featuring posters, video explanations, and bonus fun
+            games</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Gentle</span>
+          <span class="project-sub">Interactive Science Learning</span>
+          <div class="project-desc">Interactive Web-Based Science Learning Program</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Jefrey</span>
+          <span class="project-sub">Kill the Sawits</span>
+          <div class="project-desc">Metroidvania game inspired by Hollow Knight about defeating sawits</div>
+        </div>
       </div>
-      <ul>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Rifqy</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Raisya</span><span class="proj">— Nexus</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Dhavi</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Descan</span><span class="proj">— Innovation Project</span></li>
-        <li><svg class="chevron" viewBox="0 0 6 10"><path d="M1 1l4 4-4 4" stroke="#0af" stroke-width="1" fill="none"/></svg><span class="name">Haidar</span><span class="proj">— Dadarzz Agent</span></li>
-      </ul>
+
+      <!-- SCIENCE -->
+      <div class="category-card" style="--cat-color: var(--cat-science)">
+        <div class="cat-icon">🔬</div>
+        <div class="cat-title">Science &amp; Environment</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Hadziq Ula</span>
+          <span class="project-sub">TerraSense</span>
+          <div class="project-desc">Smart IoT-based irrigation system</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Salsa</span>
+          <span class="project-sub">BirdDex!</span>
+          <div class="project-desc">A Pokédex-styled interactive web of birds around the world</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Naura</span>
+          <span class="project-sub">Nuclear Reactor Simulator</span>
+          <div class="project-desc">Frostpunk/Factorio inspired nuclear reactor simulator game</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Athar</span>
+          <span class="project-sub">Patho-Predict</span>
+          <div class="project-desc">Genomic predictive system that identifies mutations in genomic sequences</div>
+        </div>
+      </div>
+
+      <!-- SOCIAL -->
+      <div class="category-card" style="--cat-color: var(--cat-social)">
+        <div class="cat-icon">🌐</div>
+        <div class="cat-title">Social &amp; Self-Management</div>
+        <div class="cat-divider"></div>
+        <div class="project-item">
+          <span class="project-name">Rifqy</span>
+          <span class="project-sub">Time is Yours</span>
+          <div class="project-desc">Web-demo management application</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Raisya</span>
+          <span class="project-sub">Nexus</span>
+          <div class="project-desc">Centralized digital web to simplify communication and operations in a boarding
+            school</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Dhavi</span>
+          <span class="project-sub">Freedom of A Puppet</span>
+          <div class="project-desc">Illustrating the problems of society through animation</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Deschan</span>
+          <span class="project-sub">GoLingual</span>
+          <div class="project-desc">Interactive educational site about languages</div>
+        </div>
+        <div class="project-item">
+          <span class="project-name">Haidar</span>
+          <span class="project-sub">Dadarzz Agent</span>
+          <div class="project-desc">AI Automation Agent &amp; ManageSpace Web Management System</div>
+        </div>
+      </div>
+
     </div>
   </div>
-</div>
 
-<!-- Camera status -->
-<div id="camStatus"><span class="dot"></span><span id="camLabel">SYS:READY</span></div>
+  <!-- ════════════════════════════════════════
+       JAVASCRIPT
+       ════════════════════════════════════════ -->
+  <script>
+    (() => {
 
-<!-- Branding -->
-<div id="brand">Innovation Exhibition · 2026</div>
+      /* ─── Elements ─── */
+      const unlockOverlay = document.getElementById('unlock-overlay');
+      const startBtn = document.getElementById('start-btn');
+      const idleScreen = document.getElementById('idle-screen');
+      const welcomeScreen = document.getElementById('welcome-screen');
+      const wipe = document.getElementById('wipe');
+      const corners = document.getElementById('corners');
+      const statusBar = document.getElementById('status-bar');
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+      const countdownRing = document.getElementById('countdown-ring');
+      const countdownCircle = document.getElementById('countdown-circle');
+      const countdownNum = document.getElementById('countdown-num');
+      const video = document.getElementById('input-video');
 
-<!-- ═══════════════════════════════════════════════════════════
-     MEDIAPIPE CDN (UMD — sets window globals)
-     ═══════════════════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+      /* ─── Background canvas: Particle grid ─── */
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      let particles = [];
 
-<!-- ═══════════════════════════════════════════════════════════
-     JAVASCRIPT ENGINE
-     ═══════════════════════════════════════════════════════════ -->
-<script>
-(function() {
-'use strict';
+      function initCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        particles = Array.from({ length: 80 }, () => ({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          r: Math.random() * 1.5 + 0.5,
+          a: Math.random()
+        }));
+      }
 
-// ── Create floating particles ──
-(function createParticles() {
-  const container = document.getElementById('particles');
-  for (let i = 0; i < 20; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = Math.random() * 100 + 'vw';
-    p.style.animationDuration = (8 + Math.random() * 15) + 's';
-    p.style.animationDelay = (Math.random() * 10) + 's';
-    p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
-    container.appendChild(p);
-  }
-})();
+      function drawBg() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// ── DOM References ──
-const $ = id => document.getElementById(id);
-const unlockEl    = $('unlock');
-const startBtn    = $('startBtn');
-const idleEl      = $('idle');
-const wipeEl      = $('wipe');
-const welcomeEl   = $('welcome');
-const camEl       = $('cam');
-const camStatus   = $('camStatus');
-const camLabel    = $('camLabel');
-const cards       = document.querySelectorAll('.cat-card');
+        // Deep gradient
+        const grad = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 0,
+          canvas.width / 2, canvas.height / 2, canvas.width * 0.75
+        );
+        grad.addColorStop(0, '#0a1d42');
+        grad.addColorStop(1, '#020b1f');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-// ── State ──
-let state = 'locked'; // locked | idle | greeting | welcome
-let hasGreeted = false;
-let lastFaceTime = 0;
-let resetTimer = null;
-let faceDetector = null;
-let detecting = false;
-let lastDetectTime = 0;
-const DETECT_INTERVAL = 100; // ~10 fps
+        // Grid lines
+        ctx.strokeStyle = 'rgba(237,197,49,0.04)';
+        ctx.lineWidth = 1;
+        const step = 80;
+        for (let x = 0; x < canvas.width; x += step) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += step) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
 
-// ── Idle Message Cycling ──
-const idleMessages = [
-  { main: 'Step Closer to Begin', sub: 'Something amazing is waiting for you' },
-  { main: 'Curious? Come Closer', sub: 'Our AI will detect you automatically' },
-  { main: 'What Will You Discover?', sub: '19 student innovations await inside' },
-  { main: 'Walk Up and Say Hello', sub: 'The future is just a few steps away' },
-  { main: 'Ready to Explore?', sub: 'Health · Games · Science · Social projects' },
-  { main: 'Your Journey Starts Here', sub: 'Step into the zone to unlock the exhibition' },
-  { main: 'Don\'t Be Shy', sub: 'The screen reacts when you approach' },
-];
-let idleMsgIndex = 0;
-let idleCycleTimer = null;
+        // Particles
+        particles.forEach(p => {
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height;
+          if (p.y > canvas.height) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(237,197,49,${p.a * 0.5})`;
+          ctx.fill();
+        });
 
-function startIdleCycle() {
-  const mainEl = document.getElementById('idleMain');
-  const subEl = document.getElementById('idleSub');
-  if (!mainEl || !subEl) return;
-  idleCycleTimer = setInterval(() => {
-    // Fade out
-    mainEl.style.opacity = '0';
-    subEl.style.opacity = '0';
-    mainEl.style.transform = 'translateY(-8px)';
-    subEl.style.transform = 'translateY(-5px)';
-    setTimeout(() => {
-      idleMsgIndex = (idleMsgIndex + 1) % idleMessages.length;
-      mainEl.textContent = idleMessages[idleMsgIndex].main;
-      subEl.textContent = idleMessages[idleMsgIndex].sub;
-      // Fade in
-      mainEl.style.transform = 'translateY(8px)';
-      subEl.style.transform = 'translateY(5px)';
-      requestAnimationFrame(() => {
-        mainEl.style.opacity = '';
-        mainEl.style.transform = '';
-        subEl.style.opacity = '';
-        subEl.style.transform = '';
+        // Connect nearby particles
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(237,197,49,${0.12 * (1 - dist / 120)})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+
+        requestAnimationFrame(drawBg);
+      }
+
+      window.addEventListener('resize', initCanvas);
+      initCanvas();
+      drawBg();
+
+      /* ─── State ─── */
+      let appState = 'unlock'; // unlock | idle | welcome
+      let hasGreeted = false;
+      let resetTimer = null;
+      let countdownSec = 10;
+      let countdownIntvl = null;
+      const CIRCUMFERENCE = 175.93;
+
+      /* ─── TTS Helper ─── */
+      function speak(text) {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = 'en-US';
+        utt.rate = 0.95;
+        utt.pitch = 1.1;
+        utt.volume = 1;
+
+        // Pick a natural voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v =>
+          v.name.toLowerCase().includes('google') ||
+          v.name.toLowerCase().includes('natural') ||
+          v.lang === 'en-US'
+        );
+        if (preferred) utt.voice = preferred;
+        window.speechSynthesis.speak(utt);
+      }
+
+      /* ─── Beep chime via Web Audio ─── */
+      function playChime() {
+        try {
+          const ac = new (window.AudioContext || window.webkitAudioContext)();
+          const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+          notes.forEach((freq, i) => {
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain); gain.connect(ac.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const t = ac.currentTime + i * 0.12;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.04);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+            osc.start(t); osc.stop(t + 0.5);
+          });
+        } catch (e) { /* silent fail */ }
+      }
+
+      /* ─── Countdown ring ─── */
+      function startCountdown() {
+        countdownSec = 10;
+        countdownRing.style.display = 'block';
+        countdownNum.textContent = countdownSec;
+        countdownCircle.style.strokeDashoffset = 0;
+        clearInterval(countdownIntvl);
+        countdownIntvl = setInterval(() => {
+          countdownSec--;
+          countdownNum.textContent = countdownSec;
+          const offset = CIRCUMFERENCE * (1 - countdownSec / 10);
+          countdownCircle.style.strokeDashoffset = offset;
+          if (countdownSec <= 0) { clearInterval(countdownIntvl); }
+        }, 1000);
+      }
+
+      function stopCountdown() {
+        clearInterval(countdownIntvl);
+        countdownRing.style.display = 'none';
+      }
+
+      /* ─── State machine ─── */
+      function goIdle() {
+        appState = 'idle';
+        hasGreeted = false;
+        stopCountdown();
+        clearTimeout(resetTimer);
+        window.speechSynthesis && window.speechSynthesis.cancel();
+
+        welcomeScreen.classList.remove('visible');
+        idleScreen.style.display = 'flex';
+        setTimeout(() => idleScreen.classList.remove('hidden'), 20);
+
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'SCANNING FOR VISITORS';
+      }
+
+      function triggerWelcome() {
+        if (appState === 'welcome') return;
+        appState = 'welcome';
+
+        // Wipe transition
+        wipe.classList.add('active');
+        setTimeout(() => wipe.classList.remove('active'), 950);
+
+        // Hide idle
+        idleScreen.classList.add('hidden');
+        setTimeout(() => { idleScreen.style.display = 'none'; }, 400);
+
+        // Show welcome
+        setTimeout(() => {
+          welcomeScreen.classList.add('visible');
+        }, 450);
+
+        // Audio
+        if (!hasGreeted) {
+          hasGreeted = true;
+          setTimeout(() => {
+            playChime();
+            setTimeout(() => {
+              speak("Welcome to Our Passion Project Exhibition!");
+            }, 600);
+          }, 500);
+        }
+
+        // Status
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'VISITOR DETECTED — DISPLAYING PROJECTS';
+
+        scheduleReset();
+      }
+
+      function scheduleReset() {
+        clearTimeout(resetTimer);
+        startCountdown();
+        resetTimer = setTimeout(goIdle, 10000);
+      }
+
+      /* ─── MediaPipe Face Detection ─── */
+      let lastDetectTime = 0;
+      const DETECT_INTERVAL = 100; // ~10 FPS throttle
+
+      function onResults(results) {
+        const now = performance.now();
+        if (now - lastDetectTime < DETECT_INTERVAL) return;
+        lastDetectTime = now;
+
+        const faceFound = results.detections && results.detections.length > 0;
+
+        if (faceFound) {
+          if (appState === 'idle') {
+            triggerWelcome();
+          } else if (appState === 'welcome') {
+            // Refresh the reset timer on continued detection
+            clearTimeout(resetTimer);
+            scheduleReset();
+          }
+        }
+      }
+
+      function initFaceDetection() {
+        const faceDetection = new FaceDetection({
+          locateFile: (file) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+        });
+        faceDetection.setOptions({
+          model: 'short',          // lighter / faster for low-end hardware
+          minDetectionConfidence: 0.7
+        });
+        faceDetection.onResults(onResults);
+
+        const camera = new Camera(video, {
+          onFrame: async () => {
+            await faceDetection.send({ image: video });
+          },
+          width: 320,   // intentionally low-res to save CPU
+          height: 240
+        });
+        camera.start()
+          .then(() => {
+            statusDot.className = 'status-dot';
+            statusText.textContent = 'SCANNING FOR VISITORS';
+          })
+          .catch(() => {
+            statusDot.className = 'status-dot red';
+            statusText.textContent = 'CAMERA UNAVAILABLE — CHECK PERMISSIONS';
+          });
+      }
+
+      /* ─── Unlock button ─── */
+      startBtn.addEventListener('click', () => {
+        // Trigger audio context on user gesture (required by browsers)
+        try { new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { }
+        // Preload voices
+        if (window.speechSynthesis) window.speechSynthesis.getVoices();
+
+        unlockOverlay.classList.add('hidden');
+        setTimeout(() => {
+          unlockOverlay.style.display = 'none';
+          corners.style.display = 'block';
+          statusBar.style.display = 'flex';
+          idleScreen.style.display = 'flex';
+          setTimeout(() => idleScreen.classList.remove('hidden'), 20);
+          appState = 'idle';
+          initFaceDetection();
+        }, 850);
       });
-    }, 500);
-  }, 4000);
-}
 
-function stopIdleCycle() {
-  if (idleCycleTimer) { clearInterval(idleCycleTimer); idleCycleTimer = null; }
-}
+      // Voices sometimes load async
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+      }
 
-// ── Audio: Synthesize tech chime via Web Audio API ──
-function playChime() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Futuristic ascending tone
-    const freqs = [220, 330, 440, 660, 880];
-    freqs.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = i < 3 ? 'sine' : 'triangle';
-      const t = ctx.currentTime + i * 0.08;
-      osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.1, t + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(t);
-      osc.stop(t + 0.5);
-    });
-  } catch (e) {
-    console.warn('Chime failed:', e);
-  }
-}
-
-// ── Voice: Web Speech API ──
-function speak(text) {
-  try {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
-    u.pitch = 1.05;
-    u.volume = 1;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google'))
-                   || voices.find(v => v.lang.startsWith('en'))
-                   || voices[0];
-    if (preferred) u.voice = preferred;
-    window.speechSynthesis.speak(u);
-  } catch (e) {
-    console.warn('Speech failed:', e);
-  }
-}
-
-// Preload voices
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-}
-
-// ── Wipe Transition ──
-function wipeTransition(onMidpoint) {
-  return new Promise(resolve => {
-    wipeEl.className = 'animate-in';
-    wipeEl.addEventListener('animationend', function handler() {
-      wipeEl.removeEventListener('animationend', handler);
-      if (onMidpoint) onMidpoint();
-      requestAnimationFrame(() => {
-        wipeEl.className = 'animate-out';
-        wipeEl.addEventListener('animationend', function h2() {
-          wipeEl.removeEventListener('animationend', h2);
-          wipeEl.className = '';
-          resolve();
-        }, { once: true });
-      });
-    }, { once: true });
-  });
-}
-
-// ── Card stagger animation ──
-function showCards() {
-  cards.forEach((c, i) => {
-    setTimeout(() => c.classList.add('show'), 150 + i * 120);
-  });
-}
-function hideCards() {
-  cards.forEach(c => c.classList.remove('show'));
-}
-
-// ── Transition to Welcome ──
-async function transitionToWelcome() {
-  if (state === 'greeting' || state === 'welcome') return;
-  state = 'greeting';
-  hasGreeted = true;
-  stopIdleCycle();
-
-  playChime();
-
-  await wipeTransition(() => {
-    idleEl.classList.add('hidden');
-    hideCards();
-    welcomeEl.classList.add('visible');
-  });
-
-  showCards();
-
-  setTimeout(() => {
-    speak('Welcome! Explore our projects in Health, Games, Science, and Social Management.');
-  }, 400);
-
-  state = 'welcome';
-  lastFaceTime = performance.now();
-}
-
-// ── Transition to Idle (Reset) ──
-async function transitionToIdle() {
-  if (state === 'idle' || state === 'locked') return;
-  state = 'greeting';
-
-  await wipeTransition(() => {
-    welcomeEl.classList.remove('visible');
-    hideCards();
-    idleEl.classList.remove('hidden');
-  });
-
-  hasGreeted = false;
-  state = 'idle';
-  startIdleCycle();
-}
-
-// ── MediaPipe Callback ──
-function onFaceResults(results) {
-  detecting = false;
-  if (state === 'locked' || state === 'greeting') return;
-
-  const hasFace = results.detections && results.detections.length > 0;
-
-  if (hasFace) {
-    lastFaceTime = performance.now();
-    if (state === 'idle' && !hasGreeted) transitionToWelcome();
-    if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
-  } else if (state === 'welcome') {
-    if (!resetTimer) {
-      resetTimer = setTimeout(() => { resetTimer = null; transitionToIdle(); }, 10000);
-    }
-  }
-}
-
-// ── Detection Loop ──
-function detectionLoop(timestamp) {
-  requestAnimationFrame(detectionLoop);
-  if (state === 'locked' || state === 'greeting' || detecting) return;
-  if (timestamp - lastDetectTime < DETECT_INTERVAL) return;
-  lastDetectTime = timestamp;
-  if (camEl.readyState >= 2 && faceDetector) {
-    detecting = true;
-    faceDetector.send({ image: camEl }).catch(() => { detecting = false; });
-  }
-}
-
-// ── Initialize Camera + MediaPipe ──
-async function initVision() {
-  try {
-    camLabel.textContent = 'SYS:INIT';
-
-    const FD = window.FaceDetection;
-    if (!FD) throw new Error('MediaPipe FaceDetection not loaded');
-
-    faceDetector = new FD({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
-    });
-    faceDetector.setOptions({ model: 'short', minDetectionConfidence: 0.5 });
-    faceDetector.onResults(onFaceResults);
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
-      audio: false
-    });
-    camEl.srcObject = stream;
-    await camEl.play();
-
-    requestAnimationFrame(detectionLoop);
-
-    camLabel.textContent = 'SYS:ACTIVE';
-    camStatus.classList.remove('error');
-  } catch (err) {
-    console.error('Vision init error:', err);
-    camLabel.textContent = 'SYS:NO_CAM';
-    camStatus.classList.add('error');
-    setTimeout(() => { if (state === 'idle') transitionToWelcome(); }, 5000);
-  }
-}
-
-// ── Start ──
-startBtn.addEventListener('click', async () => {
-  unlockEl.classList.add('hidden');
-  idleEl.classList.remove('hidden');
-  state = 'idle';
-  startIdleCycle();
-  await initVision();
-});
-
-document.addEventListener('keydown', e => {
-  if ((e.key === 'Enter' || e.key === ' ') && state === 'locked') startBtn.click();
-});
-
-})();
-</script>
+    })();
+  </script>
 </body>
+
 </html>
