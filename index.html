@@ -970,7 +970,7 @@
       let appState = 'unlock'; // unlock | idle | welcome
       let hasGreeted = false;
       let resetTimer = null;
-      let countdownSec = 15;
+      let countdownSec = 10;
       let countdownIntvl = null;
       const CIRCUMFERENCE = 175.93;
 
@@ -1017,7 +1017,7 @@
 
       /* ─── Countdown ring ─── */
       function startCountdown() {
-        countdownSec = 15;
+        countdownSec = 10;
         clearInterval(countdownIntvl);
         countdownIntvl = setInterval(() => {
           countdownSec--;
@@ -1083,7 +1083,7 @@
       function scheduleReset() {
         clearTimeout(resetTimer);
         startCountdown();
-        resetTimer = setTimeout(goIdle, 15000);
+        resetTimer = setTimeout(goIdle, 10000);
       }
 
       /* ─── MediaPipe Face Detection ─── */
