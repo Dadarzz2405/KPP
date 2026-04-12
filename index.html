@@ -6,9 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Welcome Kiosk</title>
 
-  <!-- MediaPipe Face Detection -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"
-    crossorigin="anonymous"></script>
+  <!-- MediaPipe Pose -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
   <!-- Google Fonts: Orbitron (display) + Exo 2 (body) -->
@@ -1084,7 +1083,7 @@
         resetTimer = setTimeout(goIdle, 15000);
       }
 
-      /* ─── MediaPipe Face Detection ─── */
+      /* ─── MediaPipe Pose Detection ─── */
       let lastDetectTime = 0;
       const DETECT_INTERVAL = 100; // ~10 FPS throttle
 
@@ -1093,9 +1092,9 @@
         if (now - lastDetectTime < DETECT_INTERVAL) return;
         lastDetectTime = now;
 
-        const faceFound = results.detections && results.detections.length > 0;
+        const humanFound = results.poseLandmarks && results.poseLandmarks.length > 0;
 
-        if (faceFound) {
+        if (humanFound) {
           if (appState === 'idle') {
             triggerWelcome();
           } else if (appState === 'welcome') {
@@ -1106,20 +1105,22 @@
         }
       }
 
-      function initFaceDetection() {
-        const faceDetection = new FaceDetection({
+      function initPoseDetection() {
+        const pose = new Pose({
           locateFile: (file) =>
-            `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+            `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
         });
-        faceDetection.setOptions({
-          model: 'short',          // lighter / faster for low-end hardware
-          minDetectionConfidence: 0.7
+        pose.setOptions({
+          modelComplexity: 0, // Light and fast
+          smoothLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
         });
-        faceDetection.onResults(onResults);
+        pose.onResults(onResults);
 
         const camera = new Camera(video, {
           onFrame: async () => {
-            await faceDetection.send({ image: video });
+            await pose.send({ image: video });
           },
           width: 320,   // intentionally low-res to save CPU
           height: 240
@@ -1150,7 +1151,7 @@
           idleScreen.style.display = 'flex';
           setTimeout(() => idleScreen.classList.remove('hidden'), 20);
           appState = 'idle';
-          initFaceDetection();
+          initPoseDetection();
         }, 850);
       });
 
